@@ -71,7 +71,7 @@ Parameters for `plain` goal:
 `--mining`|Rule mining threshold.|`0.9` (default: `0.0` support)
 `--sampling`|Gibbs sampling iterations.|`1000000` (default: 100 x evidence size)
 `--rules`|Maximum number of rules.|`1500` (default: none)
-`--sim`|Enable similarity among literals as `min,step,max`.|`0.8,0.1,0.9` (default: none)
+`--sim`|Enable similarity among literals in % as `min,step,max`.|`80,10,90` (default: none)
 `--onto`|Enable ontology import.|`true` (default: `false`)
 `--fwc`|Enable forward-chain.|`true` (default: `false`)
 

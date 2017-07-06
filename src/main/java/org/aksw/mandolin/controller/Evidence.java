@@ -17,6 +17,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.hp.hpl.jena.graph.Node;
+import com.hp.hpl.jena.graph.NodeFactory;
 import com.hp.hpl.jena.graph.Triple;
 import com.hp.hpl.jena.sparql.core.Quad;
 import com.hp.hpl.jena.vocabulary.RDF;
@@ -67,8 +68,14 @@ public class Evidence {
 		StreamRDF reader = new StreamRDF() {
 			
 			@Override
-			public void triple(Triple triple) {
-				writer.triple(triple);
+			public void triple(Triple arg0) {
+				String o = parse(arg0.getObject());
+				if(o == null)
+					return;
+				
+				// create a URI-only graph with literals as nodes
+				Triple t = new Triple(arg0.getSubject(), arg0.getPredicate(), NodeFactory.createURI(o));
+				writer.triple(t);
 			}
 			
 			@Override
@@ -113,7 +120,6 @@ public class Evidence {
 //				String name2 = 
 						map.add(o, Type.ENTITY);
 				
-				// XXX oddly this shall be off
 //				map.addRelationship(relName, name1, name2);
 			}
 			
@@ -156,6 +162,18 @@ public class Evidence {
 	 */
 	public static final TreeSet<ComparableLiteral> build(final NameMapper map, final String BASE) {
 		
+		// append model-sim-fwc.nt to model-fwc.nt
+		final FileOutputStream output;
+		try {
+			output = new FileOutputStream(new File(BASE + "/model-fwc-temp.nt"));
+		} catch (FileNotFoundException e) {
+			logger.fatal(e.getMessage());
+			throw new RuntimeException("File " + BASE + "/model-fwc-temp.nt not found!");
+		}
+		
+		final StreamRDF writer = StreamRDFWriter.getWriterStream(output, Lang.NT);
+		writer.start();
+		
 		final TreeSet<ComparableLiteral> setOfStrings = new TreeSet<>();
 		
 		// reader implementation
@@ -189,7 +207,11 @@ public class Evidence {
 				String o = parse(arg0.getObject());
 				if(o == null)
 					return;
-
+				
+				// create a URI-only graph with literals as nodes
+				Triple t = new Triple(arg0.getSubject(), arg0.getPredicate(), NodeFactory.createURI(o));
+				writer.triple(t);
+				
 				String relName = map.add(p, Type.RELATION);
 				String subjName = map.add(s, Type.ENTITY);
 				String objName = map.add(o, Type.ENTITY);
@@ -270,6 +292,12 @@ public class Evidence {
 
 		RDFDataMgr.parse(dataStream, BASE + "/model-fwc.nt");
 		
+		writer.finish();
+		
+		// delete old file, rename temp file
+		new File(BASE + "/model-fwc.nt").delete();
+		new File(BASE + "/model-fwc-temp.nt").renameTo(new File(BASE + "/model-fwc.nt"));
+		
 		return setOfStrings;
 		
 	}
@@ -279,9 +307,9 @@ public class Evidence {
 			if(obj.isURI())
 				return obj.getURI();
 			if(obj.isLiteral())
-				return obj.getLiteralValue().toString();
+				return "literal://" + obj.getLiteralValue().toString();
 			if(obj.isBlank())
-				return obj.getBlankNodeLabel();
+				return "blank://" + obj.getBlankNodeLabel();
 		} catch(Exception e) {
 			logger.warn("Cannot parse node: "+obj);
 		}
